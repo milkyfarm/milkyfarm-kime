@@ -2,7 +2,6 @@
   "id": "/milkyfarm-kime/",
   "name": "ミルキーファーム 決めること",
   "short_name": "決めること",
-  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f2f6f9",

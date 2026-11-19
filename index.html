@@ -30,22 +30,23 @@
 <body>
   <script>
     // 鍵はこのページには書かない（公開の場所なので）。
-    // 初回だけ「入口URL#k=鍵」で開く → この端末に覚えて、URLから消す。2回目からはアイコンを押すだけで開く。
+    // 2026-11-19 iPhone はホーム画面のアプリと Safari とで保存場所が別。「ホーム画面に追加」したときのURLがそのまま起動URLになるので、
+    // 鍵は ?k= としてURLに残す（古い #k= で開いたら ?k= に書きかえる）。manifest に start_url を書かないのも同じ理由。
     var EXEC = 'https://script.google.com/macros/s/AKfycbweBFqQ_3hq_fmIR12lAtrToWwCSDW2U5SU87Ng6k-H3Xjf1cQrMA93jEJDOObam79j4A/exec';
     function save(k) { try { localStorage.setItem('kime_key', k); } catch (e) {} }
     function load() { try { return localStorage.getItem('kime_key') || ''; } catch (e) { return ''; } }
     function pick(s) { var m = String(s || '').match(/[#&?]k=([0-9a-f]{16,})/); return m ? m[1] : (/^[0-9a-f]{16,}$/.test(String(s).trim()) ? String(s).trim() : ''); }
-    var k = pick(location.hash);
-    if (k) { save(k); history.replaceState(null, '', location.pathname + location.search); }
-    k = load();
+    var k = pick(location.search) || pick(location.hash) || load();
     if (k) {
+      save(k);
+      if (pick(location.search) !== k || location.hash) history.replaceState(null, '', location.pathname + '?k=' + k);
       var f = document.createElement('iframe');
       f.src = EXEC + '?page=kime&k=' + encodeURIComponent(k);
       document.body.appendChild(f);
     } else {
-      document.body.innerHTML = '<div class="msg"><img src="icon-192.png" alt=""><p><b>最初にLINEのリンクから開いてください。</b></p>' +
-        '<small>ホーム画面のアイコンから開いていて、LINEのリンクで開いても変わらないときは、LINEのリンクをコピーしてここに貼ってください。</small>' +
-        '<input id="p" placeholder="LINEのリンクを貼る"><button onclick="var k=pick(document.getElementById(\'p\').value);if(k){save(k);location.reload()}">開く</button></div>';
+      document.body.innerHTML = '<div class="msg"><img src="icon-192.png" alt=""><p><b>リンクを1回だけ入れてください</b></p>' +
+        '<small>朝の報告（LINE）の「決めること」のリンクを長押し →「コピー」→ 下の欄を押して「ペースト」→「開く」。<br>次からはアイコンを押すだけで開きます。</small>' +
+        '<input id="p" type="url" inputmode="url" autocomplete="off" placeholder="ここを押して貼る"><button onclick="var k=pick(document.getElementById(\'p\').value);if(k){save(k);location.replace(location.pathname+\'?k=\'+k)}">開く</button></div>';
     }
   </script>
 </body>
