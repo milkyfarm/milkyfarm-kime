@@ -63,7 +63,7 @@
         var perm = await Notification.requestPermission(); if (perm !== 'granted') return false;
         var reg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready;
         var sub = await reg.pushManager.getSubscription(); if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(VAPID) });
-        var j = await (await fetch(EXEC, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ api: 'kimePushReg', k: load(), sub: sub.toJSON(), ua: navigator.userAgent }) })).json();
+        var j = await (await fetch(EXEC, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ api: 'kimePushReg', k: k || load(), sub: sub.toJSON(), ua: navigator.userAgent }) })).json();
         if (j.ok) ls('kime_push', '1');
         return !!j.ok;
       } catch (e) { return false; }
