@@ -25,6 +25,11 @@
     .msg input { width: 100%; box-sizing: border-box; margin-top: 14px; font-size: 15px; padding: 10px; border: 1px solid #d9e4ec; border-radius: 10px; }
     .msg button { margin-top: 10px; font-size: 16px; font-weight: 700; padding: 10px 24px; border: 0; border-radius: 12px; background: #a8452f; color: #fff; }
     .msg small { color: #5d7383; }
+    /* 2026-11-20 通知を受け取るボタン（まだ登録していない端末だけ。押したら消える） */
+    #nb { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 5; display: flex; gap: 8px; align-items: center; background: #fff; border: 1px solid #f0d9d2; border-radius: 16px; padding: 10px 12px; box-shadow: 0 6px 18px rgba(27,58,76,.18); font-size: 14px; }
+    #nb button { border: 0; border-radius: 12px; font-size: 15px; font-weight: 700; padding: 10px 14px; }
+    #nb .y { background: #a8452f; color: #fff; margin-left: auto; }
+    #nb .n { background: #eef2f5; color: #5d7383; }
   </style>
 </head>
 <body>
@@ -35,6 +40,34 @@
     var EXEC = 'https://script.google.com/macros/s/AKfycbweBFqQ_3hq_fmIR12lAtrToWwCSDW2U5SU87Ng6k-H3Xjf1cQrMA93jEJDOObam79j4A/exec';
     function save(k) { try { localStorage.setItem('kime_key', k); } catch (e) {} }
     function load() { try { return localStorage.getItem('kime_key') || ''; } catch (e) { return ''; } }
+    // ---- 2026-11-20 大誠さん：決めることにも通知（新しい「決める」「やる」が入ったら） ----
+    var VAPID = 'BF95IondUGeHdtRooS430nvgnnp-59ZUumsC_bg0faFk_p8CDBtLa-19zha3Jn085QqsshbjgHtwPJLEokv57wU';   // 公開鍵（置いてよい）
+    function u8(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); s += '='.repeat((4 - s.length % 4) % 4); var r = atob(s), a = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; }
+    function ls(n, v) { try { if (v === undefined) return localStorage.getItem(n) || ''; localStorage.setItem(n, v); } catch (e) { return ''; } }
+    function pushSetup() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+      var ios = /iPhone|iPad|iPod/.test(navigator.userAgent), standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+      if (ios && !standalone) return;                                   // iPhone はホーム画面から開いたときだけ通知できる
+      if (Notification.permission === 'granted' && ls('kime_push')) return;
+      if (Notification.permission === 'granted') { pushReg(); return; } // 許可済みなら黙って登録
+      if (Notification.permission === 'denied' || ls('kime_push_no')) return;
+      var d = document.createElement('div'); d.id = 'nb';
+      d.innerHTML = '<span>新しい「決める」「やる」を通知で知らせる</span><button class="n">あとで</button><button class="y">受け取る</button>';
+      d.querySelector('.n').onclick = function () { ls('kime_push_no', '1'); d.remove(); };
+      d.querySelector('.y').onclick = function () { d.querySelector('span').textContent = '設定しています…'; pushReg().then(function (ok) { d.querySelector('span').textContent = ok ? '通知の設定ができました' : '設定できませんでした（設定アプリ→通知→決めること）'; setTimeout(function () { d.remove(); }, 2500); }); };
+      document.body.appendChild(d);
+    }
+    async function pushReg() {
+      try {
+        var perm = await Notification.requestPermission(); if (perm !== 'granted') return false;
+        var reg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready;
+        var sub = await reg.pushManager.getSubscription(); if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(VAPID) });
+        var j = await (await fetch(EXEC, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ api: 'kimePushReg', k: load(), sub: sub.toJSON(), ua: navigator.userAgent }) })).json();
+        if (j.ok) ls('kime_push', '1');
+        return !!j.ok;
+      } catch (e) { return false; }
+    }
     function pick(s) { var m = String(s || '').match(/[#&?]k=([0-9a-f]{16,})/); return m ? m[1] : (/^[0-9a-f]{16,}$/.test(String(s).trim()) ? String(s).trim() : ''); }
     var k = pick(location.search) || pick(location.hash) || load();
     if (k) {
@@ -43,6 +76,7 @@
       var f = document.createElement('iframe');
       f.src = EXEC + '?page=kime&k=' + encodeURIComponent(k);
       document.body.appendChild(f);
+      pushSetup();
     } else {
       document.body.innerHTML = '<div class="msg"><img src="icon-192.png" alt=""><p><b>リンクを1回だけ入れてください</b></p>' +
         '<small>朝の報告（LINE）の「決めること」のリンクを長押し →「コピー」→ 下の欄を押して「ペースト」→「開く」。<br>次からはアイコンを押すだけで開きます。</small>' +
